@@ -1,0 +1,8 @@
+name: ubuntu
+url: https://cloud-images.ubuntu.com/releases/lunar/release-20230602/ubuntu-23.04-server-cloudimg-amd64.img
+checksum: 8c1d7df2d7121932ba396e37abd021d5390e23de64e2b9fbf94e8bfa4949c269
+arch: x86_64
+tags:
+  - "23.04"
+  - lunar
+  - rolling

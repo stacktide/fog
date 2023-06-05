@@ -1,0 +1,8 @@
+name: ubuntu
+url: https://cloud-images.ubuntu.com/releases/jammy/release-20230602/ubuntu-22.04-server-cloudimg-amd64.img
+checksum: 7d830df583e86b6563ccfc45376a4d8d24f873267abf78e02439f28761174b22
+arch: x86_64
+tags:
+  - "22.04"
+  - jammy
+  - latest

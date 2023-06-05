@@ -1,0 +1,8 @@
+name: rockylinux
+url: https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud-Base-9.2-20230513.0.x86_64.qcow2
+checksum: 50510f98abe1b20a548102a05a9be83153b0bf634fc502d5c8d1f508f6de1430
+arch: x86_64
+tags:
+  - "9.2"
+  - "9"
+  - latest
