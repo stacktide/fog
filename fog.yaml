@@ -1,0 +1,6 @@
+machines:
+  lunar:
+    image: ubuntu:lunar
+    cloud_config:
+      packages:
+        - jq

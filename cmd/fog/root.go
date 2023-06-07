@@ -9,8 +9,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-var cfgFile string
-
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "fog",
@@ -19,26 +17,45 @@ var rootCmd = &cobra.Command{
 
 Fog uses QEMU under the hood to create and manage VMs and provisions instances with Cloud Init.
 `,
-	SilenceUsage: true,
+	SilenceUsage: true, // this prevents the usage from being shown when Command.RunE returns an error
 }
+
+var globalConfig = viper.New()
+var projectConfig = viper.New()
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(initGlobalConfig)
+	cobra.OnInitialize(initProjectConfig)
 }
 
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {
+// initGlobalConfig reads in config file and ENV variables if set for global configuration settings.
+func initGlobalConfig() {
 	configFilePath, err := xdg.ConfigFile("fog/config.yaml")
 
 	cobra.CheckErr(err)
 
-	viper.SetConfigFile(configFilePath)
+	globalConfig.SetConfigFile(configFilePath)
 
-	viper.AutomaticEnv() // read in environment variables that match
+	globalConfig.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
+	if err := globalConfig.ReadInConfig(); err == nil {
 		// TODO: use logger instead
-		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+		fmt.Fprintln(os.Stderr, "Using config file:", globalConfig.ConfigFileUsed())
+	}
+}
+
+// initProjectConfig reads in config file and ENV variables if set for per project configuration settings.
+func initProjectConfig() {
+	projectConfig.SetConfigName("fog")
+	projectConfig.SetConfigType("yaml")
+	projectConfig.AddConfigPath(".")
+
+	projectConfig.AutomaticEnv() // read in environment variables that match
+
+	// If a config file is found, read it in.
+	if err := projectConfig.ReadInConfig(); err == nil {
+		// TODO: use logger instead
+		fmt.Fprintln(os.Stderr, "Using project config file:", projectConfig.ConfigFileUsed())
 	}
 }
