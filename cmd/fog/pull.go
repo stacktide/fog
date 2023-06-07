@@ -22,12 +22,6 @@ An image is pulled by name and tag. If the tag is not specified the "latest" tag
 
 		rawImg := args[0]
 
-		err := r.SyncIfMissing(ctx)
-
-		if err != nil {
-			return err
-		}
-
 		img, err := r.Find(ctx, rawImg)
 
 		if err != nil {
