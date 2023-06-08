@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"log"
+	"net"
 	"net/http"
 
 	"github.com/charmbracelet/lipgloss"
@@ -56,27 +58,46 @@ func (c *Cluster) Init(ctx context.Context) error {
 		return err
 	}
 
-	// TODO: Do we create a control socket here?
-
 	return nil
 }
 
 func (c *Cluster) Start(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 
-	imds := NewImdsSever()
+	imds := NewImdsSever(c.machines)
 
-	// Run the IMDS server in the background
+	var port int
+
+	portAssigned := make(chan bool, 1)
+
+	// Run the IMDS server in the background on a random port
 	eg.Go(func() error {
-		// TODO: bind to localhost only if possible with QEMU networking
-		return http.ListenAndServe("127.0.0.1:8090", imds)
+		l, err := net.Listen("tcp", "127.0.0.1:0")
+
+		if err != nil {
+			return fmt.Errorf("opening IMDS server TCP connection: %w", err)
+		}
+
+		port = l.Addr().(*net.TCPAddr).Port
+
+		portAssigned <- true
+
+		return http.Serve(l, imds)
 	})
+
+	<-portAssigned
+
+	log.Printf("Running IMDS server on port %d\n", port)
+
+	opts := &StartOptions{
+		imdsPort: port,
+	}
 
 	for _, m := range c.machines {
 		m := m
 
 		eg.Go(func() error {
-			err := m.Start(ctx)
+			err := m.Start(ctx, opts)
 
 			if err != nil {
 				return err
@@ -100,7 +121,7 @@ func (c *Cluster) Start(ctx context.Context) error {
 
 			// TODO: try and buffer lines for a few ms to reduce interleaving
 			for scanner.Scan() {
-				fmt.Printf("%s %s\n", nameStyle.Render(m.name), scanner.Text())
+				fmt.Printf("%s %s\n", nameStyle.Render(m.Name), scanner.Text())
 			}
 
 			return nil

@@ -3,40 +3,45 @@ package fog
 import (
 	"fmt"
 	"net/http"
+
+	"gopkg.in/yaml.v3"
 )
 
 type ImdsServer struct {
 	mux *http.ServeMux
 }
 
-func NewImdsSever() *ImdsServer {
+func NewImdsSever(machines []*Machine) *ImdsServer {
 	mux := http.NewServeMux()
 
-	// TODO: dynamic based on machine ID
+	for _, m := range machines {
+		c := m.Conf.CloudConfig
 
-	// TODO: pass in
-	mux.HandleFunc("/user-data", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("User data requested")
+		mux.HandleFunc(fmt.Sprintf("/%s/user-data", m.ID), func(w http.ResponseWriter, r *http.Request) {
+			d, err := yaml.Marshal(&c)
 
-		w.Write([]byte(`#cloud-config
-password: password
-chpasswd:
-  expire: False
-  
-  `))
-	})
+			if err != nil {
+				w.WriteHeader(500)
+				w.Write([]byte(err.Error()))
+				return
+			}
 
-	// TODO: pass in
-	mux.HandleFunc("/meta-data", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`instance-id: someid/somehostname
-local-hostname: jammy
+			w.Header().Add("Content-Type", "text/yaml")
+			w.Write([]byte("#cloud-config\n"))
+			if c != nil {
+				w.Write(d)
+			}
+		})
 
-`))
-	})
+		mux.HandleFunc(fmt.Sprintf("/%s/meta-data", m.ID), func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(fmt.Sprintf("instance-id: fog/%s\n", m.Name)))
+			w.Write([]byte(fmt.Sprintf("local-hostname: %s\n\n", m.Name)))
+		})
 
-	mux.HandleFunc("/vendor-data", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(""))
-	})
+		mux.HandleFunc(fmt.Sprintf("/%s/vendor-data", m.ID), func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(""))
+		})
+	}
 
 	return &ImdsServer{
 		mux: mux,

@@ -1,6 +1,14 @@
 machines:
   lunar:
     image: ubuntu:lunar
+    ports:
+      - "tcp::2222-:22"
     cloud_config:
+      password: password
+      chpasswd:
+        expire: False
+      ssh_pwauth: True
+      write_files:
+      - path: /root/CLOUD_INIT_WAS_HERE
       packages:
         - jq

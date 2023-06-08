@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,12 +19,13 @@ import (
 
 // Machine is a virtual machine managed by fog.
 type Machine struct {
-	id      string
-	name    string
-	conf    *MachineConfig
-	img     *Image
-	imgPath string
+	ID      string
+	Name    string
+	Conf    *MachineConfig
+	Img     *Image
+	ImgPath string
 	addr    string
+	monAddr string
 	connMu  sync.Mutex
 	conn    net.Conn
 }
@@ -32,23 +34,27 @@ func NewMachine(name string, conf *MachineConfig, img *Image, imgPath string) *M
 	id := generateMachineID()
 
 	return &Machine{
-		id:      id,
-		name:    name,
-		conf:    conf,
-		img:     img,
-		imgPath: imgPath,
+		ID:      id,
+		Name:    name,
+		Conf:    conf,
+		Img:     img,
+		ImgPath: imgPath,
 	}
 }
 
+type StartOptions struct {
+	imdsPort int
+}
+
 // Start boots the virtual machine
-func (m *Machine) Start(ctx context.Context) error {
+func (m *Machine) Start(ctx context.Context, opts *StartOptions) error {
 	bin, err := exec.LookPath("qemu-system-x86_64")
 
 	if err != nil {
 		return fmt.Errorf("finding qemu binary: %w", err)
 	}
 
-	addr, err := xdg.RuntimeFile("fog/" + m.id + ".sock")
+	addr, err := xdg.RuntimeFile("fog/" + m.ID + ".sock")
 
 	if err != nil {
 		return fmt.Errorf("generating socket file path: %w", err)
@@ -58,30 +64,62 @@ func (m *Machine) Start(ctx context.Context) error {
 
 	log.Printf("Using socket: %s\n", addr)
 
+	monAddr, err := xdg.RuntimeFile("fog/" + m.ID + "_monitor.sock")
+
+	if err != nil {
+		return fmt.Errorf("generating monitor socket file path: %w", err)
+	}
+
+	m.monAddr = monAddr
+
+	log.Printf("Using monitor socket: %s\n", monAddr)
+
+	dsUrl := fmt.Sprintf("http://10.0.2.2:%d/%s/", opts.imdsPort, m.ID)
+
+	fwds := ""
+
+	if len(m.Conf.Ports) > 0 {
+		fwds = fmt.Sprintf(",hostfwd=%s", strings.Join(m.Conf.Ports, ","))
+	}
+
 	args := []string{
-		"-net",
-		"nic",
-		"-net",
-		"user",
+		// Machine settings
 		"-machine",
 		"accel=kvm:tcg",
+		// System resources
 		"-cpu",
 		"host",
 		"-m",
 		"512",
+		// Graphics
 		"-nographic",
+		"-vga",
+		"none",
+		// Boot image
 		"-hda",
-		m.imgPath,
+		m.ImgPath,
 		"-snapshot",
+		// Networking
+		"-net",
+		"nic",
+		"-net",
+		"user" + fwds,
+		// Serial socket
 		"-chardev",
-		"socket,id=serial0,path=" + addr + ",server,nowait",
+		"socket,id=serial,path=" + addr + ",server,nowait",
 		"-serial",
-		"chardev:serial0",
+		"chardev:serial",
+		// Monitor socket (only used for debugging ATM)
+		"-chardev",
+		"socket,id=monitor,path=" + monAddr + ",server,nowait",
+		"-monitor",
+		"chardev:monitor",
+		// Cloud init
 		"-smbios",
-		"type=1,serial=ds=nocloud-net;s=http://10.0.2.2:8090/",
+		"type=1,serial=ds=nocloud-net;s=" + dsUrl,
 	}
 
-	fmt.Printf("Starting %s...\n", m.name)
+	fmt.Printf("Starting %s...\n", m.Name)
 
 	cmd := exec.Command(bin, args...)
 

@@ -10,6 +10,8 @@ type Config struct {
 type MachineConfig struct {
 	// Image is the image name and optional tag to use
 	Image string
+	// Ports specifies port mappings from a host port to the VM
+	Ports []string
 	// CloudConfig defines cloud-config YAML for cloud-init
-	CloudConfig interface{} `yaml:"cloud_config"`
+	CloudConfig map[string]interface{} `yaml:"cloud_config"`
 }

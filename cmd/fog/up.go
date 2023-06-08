@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 	"go.destructure.co/fog"
 )
@@ -20,6 +22,10 @@ If a required base image does not exist locally it will be pulled automatically.
 		conf := &fog.Config{}
 
 		projectConfig.Unmarshal(conf)
+
+		for n, m := range conf.Machines {
+			m.CloudConfig = projectConfig.GetStringMap(fmt.Sprintf("machines.%s.cloud_config", n))
+		}
 
 		r := fog.NewImageRepository()
 
