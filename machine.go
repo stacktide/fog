@@ -90,7 +90,7 @@ func (m *Machine) Start(ctx context.Context, opts *StartOptions) error {
 		"-cpu",
 		"host",
 		"-m",
-		"512",
+		m.Conf.Memory,
 		// Graphics
 		"-nographic",
 		"-vga",

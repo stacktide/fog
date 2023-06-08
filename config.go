@@ -12,6 +12,8 @@ type MachineConfig struct {
 	Image string
 	// Ports specifies port mappings from a host port to the VM
 	Ports []string
+	// Memory sets the VM startup RAM size
+	Memory string
 	// CloudConfig defines cloud-config YAML for cloud-init
 	CloudConfig map[string]interface{} `yaml:"cloud_config"`
 }

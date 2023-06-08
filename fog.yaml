@@ -1,6 +1,7 @@
 machines:
   lunar:
     image: ubuntu:lunar
+    memory: "1G"
     ports:
       - "tcp::2222-:22"
     cloud_config:
