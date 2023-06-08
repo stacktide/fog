@@ -1,0 +1,8 @@
+name: ubuntu-minimal
+url: https://cloud-images.ubuntu.com/minimal/releases/lunar/release-20230420/ubuntu-23.04-minimal-cloudimg-amd64.img
+checksum: 679b50ee630aa5826736b641d3864ce79f11ec6b182a587c6adfd055a620b70a
+arch: x86_64
+tags:
+  - "23.04"
+  - lunar
+  - rolling

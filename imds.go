@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/charmbracelet/log"
 	"gopkg.in/yaml.v3"
 )
 
@@ -21,6 +22,8 @@ func NewImdsSever(machines []*Machine) *ImdsServer {
 			d, err := yaml.Marshal(&c)
 
 			if err != nil {
+				log.Error("Invalid cloud-config", "machine", m.Name, "error", err.Error())
+
 				w.WriteHeader(500)
 				w.Write([]byte(err.Error()))
 				return
@@ -39,6 +42,7 @@ func NewImdsSever(machines []*Machine) *ImdsServer {
 		})
 
 		mux.HandleFunc(fmt.Sprintf("/%s/vendor-data", m.ID), func(w http.ResponseWriter, r *http.Request) {
+			// TODO: use this to inject any config we need for exec / shell
 			w.Write([]byte(""))
 		})
 	}

@@ -39,6 +39,8 @@ If a required base image does not exist locally it will be pulled automatically.
 			return err
 		}
 
+		fmt.Println("Starting machines...")
+
 		err = c.Start(ctx)
 
 		if err != nil {

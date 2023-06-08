@@ -117,6 +117,7 @@ func (r *ImageRepository) Pull(ctx context.Context, img *Image, opts ImagePullOp
 		r.pullMu.Unlock()
 	}()
 
+	// TODO: move printing to caller
 	fmt.Printf("Trying to pull %s %s...\n", img.Name, img.Checksum[0:8])
 
 	destFile := r.ImagePath(img)
@@ -222,6 +223,8 @@ func DownloadFile(filepath string, url string, checksum string) error {
 
 	onComplete := prefix + ": done"
 
+	// TODO: accept io writer for mpb output
+
 	p := mpb.New(
 		mpb.WithWidth(80),
 		mpb.WithRefreshRate(180*time.Millisecond),
@@ -267,6 +270,8 @@ func DownloadFile(filepath string, url string, checksum string) error {
 	}
 
 	tmpFile.Close()
+
+	// TODO: if compression is specified, decompress
 
 	if err = os.Rename(filepath+".tmp", filepath); err != nil {
 		return err

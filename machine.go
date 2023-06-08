@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os/exec"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"time"
 
 	"github.com/adrg/xdg"
+	"github.com/charmbracelet/log"
 )
 
 // Machine is a virtual machine managed by fog.
@@ -62,8 +62,6 @@ func (m *Machine) Start(ctx context.Context, opts *StartOptions) error {
 
 	m.addr = addr
 
-	log.Printf("Using socket: %s\n", addr)
-
 	monAddr, err := xdg.RuntimeFile("fog/" + m.ID + "_monitor.sock")
 
 	if err != nil {
@@ -71,8 +69,6 @@ func (m *Machine) Start(ctx context.Context, opts *StartOptions) error {
 	}
 
 	m.monAddr = monAddr
-
-	log.Printf("Using monitor socket: %s\n", monAddr)
 
 	dsUrl := fmt.Sprintf("http://10.0.2.2:%d/%s/", opts.imdsPort, m.ID)
 
@@ -119,7 +115,7 @@ func (m *Machine) Start(ctx context.Context, opts *StartOptions) error {
 		"type=1,serial=ds=nocloud-net;s=" + dsUrl,
 	}
 
-	fmt.Printf("Starting %s...\n", m.Name)
+	log.Debug("Starting machine", "name", m.Name, "sock", addr, "mon", monAddr)
 
 	cmd := exec.Command(bin, args...)
 

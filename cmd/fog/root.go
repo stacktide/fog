@@ -1,10 +1,8 @@
 package main
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/adrg/xdg"
+	"github.com/charmbracelet/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -40,8 +38,7 @@ func initGlobalConfig() {
 
 	// If a config file is found, read it in.
 	if err := globalConfig.ReadInConfig(); err == nil {
-		// TODO: use logger instead
-		fmt.Fprintln(os.Stderr, "Using config file:", globalConfig.ConfigFileUsed())
+		log.Debug("Loaded global config", "file", globalConfig.ConfigFileUsed())
 	}
 }
 
@@ -50,12 +47,11 @@ func initProjectConfig() {
 	projectConfig.SetConfigName("fog")
 	projectConfig.SetConfigType("yaml")
 	projectConfig.AddConfigPath(".")
+	projectConfig.AddConfigPath(".fog")
 
 	projectConfig.AutomaticEnv() // read in environment variables that match
 
-	// If a config file is found, read it in.
 	if err := projectConfig.ReadInConfig(); err == nil {
-		// TODO: use logger instead
-		fmt.Fprintln(os.Stderr, "Using project config file:", projectConfig.ConfigFileUsed())
+		log.Debug("Loaded project config", "file", projectConfig.ConfigFileUsed())
 	}
 }

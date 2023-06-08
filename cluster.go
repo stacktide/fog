@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/log"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -87,7 +87,7 @@ func (c *Cluster) Start(ctx context.Context) error {
 
 	<-portAssigned
 
-	log.Printf("Running IMDS server on port %d\n", port)
+	log.Debug("Started IMDS server", "port", port)
 
 	opts := &StartOptions{
 		imdsPort: port,
@@ -121,6 +121,7 @@ func (c *Cluster) Start(ctx context.Context) error {
 
 			// TODO: try and buffer lines for a few ms to reduce interleaving
 			for scanner.Scan() {
+				// TODO: accept writer instead of writing to stdout implicitly
 				fmt.Printf("%s %s\n", nameStyle.Render(m.Name), scanner.Text())
 			}
 
