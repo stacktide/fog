@@ -22,8 +22,8 @@ import (
 )
 
 // manifests holds our static image manifests from build time.
-//
-//go:embed images/*
+
+//go:embed images
 var manifests embed.FS
 
 // Image defines a virtual machine image.
@@ -158,7 +158,7 @@ func loadManifests() ([]*Image, error) {
 			return nil
 		}
 
-		buf, err := os.ReadFile(filepath)
+		buf, err := manifests.ReadFile(filepath)
 
 		if err != nil {
 			return fmt.Errorf("reading file %s: %w", filepath, err)
