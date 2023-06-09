@@ -24,6 +24,9 @@ var projectConfig = viper.New()
 func init() {
 	cobra.OnInitialize(initGlobalConfig)
 	cobra.OnInitialize(initProjectConfig)
+
+	// TODO: read from global config
+	log.SetLevel(log.DebugLevel)
 }
 
 // initGlobalConfig reads in config file and ENV variables if set for global configuration settings.
