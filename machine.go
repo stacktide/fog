@@ -62,6 +62,12 @@ func (m *Machine) Start(ctx context.Context, opts *StartOptions) error {
 
 	m.addr = addr
 
+	ttyAddr, err := xdg.RuntimeFile("fog/" + m.ID + "_tty.sock")
+
+	if err != nil {
+		return fmt.Errorf("generating ttysocket file path: %w", err)
+	}
+
 	monAddr, err := xdg.RuntimeFile("fog/" + m.ID + "_monitor.sock")
 
 	if err != nil {
@@ -105,7 +111,13 @@ func (m *Machine) Start(ctx context.Context, opts *StartOptions) error {
 		"socket,id=serial,path=" + addr + ",server,nowait",
 		"-serial",
 		"chardev:serial",
+		// TTY socket (only 1 for now)
+		"-chardev",
+		"socket,id=tty,path=" + ttyAddr + ",server,nowait",
+		"-serial",
+		"chardev:tty",
 		// Monitor socket (only used for debugging ATM)
+		// TODO: pipe QEMU errors from the monitor socket to the parent process
 		"-chardev",
 		"socket,id=monitor,path=" + monAddr + ",server,nowait",
 		"-monitor",

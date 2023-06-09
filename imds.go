@@ -42,8 +42,14 @@ func NewImdsSever(machines []*Machine) *ImdsServer {
 		})
 
 		mux.HandleFunc(fmt.Sprintf("/%s/vendor-data", m.ID), func(w http.ResponseWriter, r *http.Request) {
-			// TODO: use this to inject any config we need for exec / shell
-			w.Write([]byte(""))
+			w.Header().Add("Content-Type", "text/yaml")
+			// TODO: pull out into a YAML file and embed?
+			// Should we enable multiple gettys for concurrent commands?
+			// We can enable auto login as explained here: https://wiki.archlinux.org/title/getty
+			w.Write([]byte(`#cloud-config
+runcmd:
+  - ["sudo", "systemctl", "enable", "--now", "serial-getty@ttyS1.service"]
+`))
 		})
 	}
 
