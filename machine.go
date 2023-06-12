@@ -87,6 +87,7 @@ func (m *Machine) Start(ctx context.Context, opts *StartOptions) error {
 	args := []string{
 		// Machine settings
 		"-machine",
+		// TODO: only enable KVM when supported
 		"accel=kvm:tcg",
 		// System resources
 		"-cpu",
@@ -111,7 +112,7 @@ func (m *Machine) Start(ctx context.Context, opts *StartOptions) error {
 		"socket,id=serial,path=" + addr + ",server,nowait",
 		"-serial",
 		"chardev:serial",
-		// TTY socket (only 1 for now)
+		// TTY socket
 		"-chardev",
 		"socket,id=tty,path=" + ttyAddr + ",server,nowait",
 		"-serial",
@@ -165,6 +166,7 @@ func (m *Machine) openConn() (net.Conn, error) {
 	return nil, errors.New("failed to open connection")
 }
 
+// Conn returns a connection to the machine's primary socket.
 func (m *Machine) Conn() (net.Conn, error) {
 	conn, err := m.openConn()
 
@@ -175,7 +177,7 @@ func (m *Machine) Conn() (net.Conn, error) {
 	return conn, nil
 }
 
-// generateMachineID generates a random machine ID using a similar format as Docker and Podman.
+// generateMachineID generates a random machine ID.
 func generateMachineID() string {
 	b := make([]byte, 32)
 	r := rand.Reader

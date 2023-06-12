@@ -97,9 +97,6 @@ func (c *Cluster) Start(ctx context.Context) error {
 
 	log.Debug("Opened mux logger")
 
-	// TODO: persist cluster state for this directory / project on disk so that we can interact with the cluster from other processes.
-	// Perhaps we just need to namespace the /run files by the project name or path?
-
 	for _, m := range c.machines {
 		m := m
 

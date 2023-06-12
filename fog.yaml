@@ -13,3 +13,17 @@ machines:
       - path: /root/CLOUD_INIT_WAS_HERE
       packages:
         - jq
+  fedora:
+    image: fedora:38
+    memory: "1G"
+    ports:
+      - "tcp::2223-:22"
+    cloud_config:
+      password: password
+      chpasswd:
+        expire: False
+      ssh_pwauth: True
+      write_files:
+      - path: /root/CLOUD_INIT_WAS_HERE
+      packages:
+        - jq
