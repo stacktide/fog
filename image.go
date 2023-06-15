@@ -33,6 +33,7 @@ type Image struct {
 	Checksum string
 	Arch     string
 	Tags     []string
+	Username string
 }
 
 type ImagePullOptions struct {

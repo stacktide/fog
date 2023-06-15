@@ -25,9 +25,10 @@ type Machine struct {
 	Img     *Image
 	ImgPath string
 	addr    string
-	monAddr string
+	qmpAddr string
 	connMu  sync.Mutex
 	conn    net.Conn
+	cmd     *exec.Cmd
 }
 
 func NewMachine(name string, conf *MachineConfig, img *Image, imgPath string) *Machine {
@@ -44,6 +45,7 @@ func NewMachine(name string, conf *MachineConfig, img *Image, imgPath string) *M
 
 type StartOptions struct {
 	imdsPort int
+	output   io.Writer
 }
 
 // Start boots the virtual machine
@@ -62,19 +64,13 @@ func (m *Machine) Start(ctx context.Context, opts *StartOptions) error {
 
 	m.addr = addr
 
-	ttyAddr, err := xdg.RuntimeFile("fog/" + m.ID + "_tty.sock")
-
-	if err != nil {
-		return fmt.Errorf("generating ttysocket file path: %w", err)
-	}
-
-	monAddr, err := xdg.RuntimeFile("fog/" + m.ID + "_monitor.sock")
+	qmpAddr, err := xdg.RuntimeFile("fog/" + m.ID + "_qmp.sock")
 
 	if err != nil {
 		return fmt.Errorf("generating monitor socket file path: %w", err)
 	}
 
-	m.monAddr = monAddr
+	m.qmpAddr = qmpAddr
 
 	dsUrl := fmt.Sprintf("http://10.0.2.2:%d/%s/", opts.imdsPort, m.ID)
 
@@ -107,35 +103,36 @@ func (m *Machine) Start(ctx context.Context, opts *StartOptions) error {
 		"nic",
 		"-net",
 		"user" + fwds,
-		// Serial socket
+		// Stdio
 		"-chardev",
-		"socket,id=serial,path=" + addr + ",server,nowait",
+		"socket,id=serdev,path=" + addr + ",server=on,wait=off",
 		"-serial",
-		"chardev:serial",
-		// TTY socket
+		"chardev:serdev",
+		// QMP
 		"-chardev",
-		"socket,id=tty,path=" + ttyAddr + ",server,nowait",
-		"-serial",
-		"chardev:tty",
-		// Monitor socket (only used for debugging ATM)
-		// TODO: pipe QEMU errors from the monitor socket to the parent process
-		"-chardev",
-		"socket,id=monitor,path=" + monAddr + ",server,nowait",
-		"-monitor",
-		"chardev:monitor",
+		"socket,id=qmpdev,path=" + qmpAddr + ",server=on,wait=off",
+		"-mon",
+		"qmpdev",
 		// Cloud init
 		"-smbios",
 		"type=1,serial=ds=nocloud-net;s=" + dsUrl,
 	}
 
-	log.Debug("Starting machine", "name", m.Name, "sock", addr, "mon", monAddr)
+	log.Debug("Starting machine", "name", m.Name, "sock", addr, "mon", qmpAddr)
 
 	cmd := exec.Command(bin, args...)
+
+	m.cmd = cmd
+
+	if out := opts.output; out != nil {
+		cmd.Stdout = out
+		cmd.Stderr = out
+	}
 
 	err = cmd.Start()
 
 	if err != nil {
-		return fmt.Errorf("starting machine: %w", err)
+		return fmt.Errorf("executing QEMU command: %w", err)
 	}
 
 	return nil
@@ -160,7 +157,7 @@ func (m *Machine) openConn() (net.Conn, error) {
 			return conn, err
 		}
 
-		time.Sleep(time.Second)
+		time.Sleep(time.Duration(i) * time.Second)
 	}
 
 	return nil, errors.New("failed to open connection")
@@ -187,4 +184,24 @@ func generateMachineID() string {
 	}
 
 	return hex.EncodeToString(b)
+}
+
+// findFreeTcpPort finds a free TCP port.
+func findFreeTcpPort() (int, error) {
+	var port int
+
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+
+	if err != nil {
+		return port, fmt.Errorf("resolving tcp address: %w", err)
+	}
+
+	l, err := net.ListenTCP("tcp", addr)
+
+	if err != nil {
+		return port, fmt.Errorf("listening to TCP address: %w", err)
+	}
+
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port, nil
 }

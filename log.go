@@ -3,7 +3,6 @@ package fog
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -70,16 +69,15 @@ func (m *LogMux) flush() {
 	}
 }
 
-// Stream adds an additional log stream to the multiplexer.
-// If a stream already exists for name, Stream panics.
+// Stream adds or returns a log stream from the multiplexer.
 func (m *LogMux) Stream(name string) *LogStream {
-	_, exists := m.streams[name]
+	s, exists := m.streams[name]
 
 	if exists {
-		panic(fmt.Errorf("Stream %s already exists", name))
+		return s
 	}
 
-	s := &LogStream{
+	s = &LogStream{
 		name:    name,
 		wc:      &m.wc,
 		timeout: m.timeout,

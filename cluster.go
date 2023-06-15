@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/charmbracelet/log"
+	"github.com/hashicorp/mdns"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -17,6 +18,8 @@ type Cluster struct {
 	conf     *Config
 	r        *ImageRepository
 	machines []*Machine
+	imdsSrv  *http.Server
+	mdnsSrvs []*mdns.Server
 }
 
 func NewCluster(conf *Config, r *ImageRepository) *Cluster {
@@ -64,38 +67,40 @@ func (c *Cluster) Init(ctx context.Context) error {
 func (c *Cluster) Start(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 
-	imds := NewImdsSever(c.machines)
+	portChan := make(chan int)
 
-	var port int
-
-	portAssigned := make(chan bool, 1)
-
-	// Run the IMDS server in the background on a random port
 	eg.Go(func() error {
-		l, err := net.Listen("tcp", "127.0.0.1:0")
-
-		if err != nil {
-			return fmt.Errorf("opening IMDS server TCP connection: %w", err)
-		}
-
-		port = l.Addr().(*net.TCPAddr).Port
-
-		portAssigned <- true
-
-		return http.Serve(l, imds)
+		return c.startImdsServer(portChan)
 	})
 
-	<-portAssigned
+	port := <-portChan
 
 	log.Debug("Started IMDS server", "port", port)
-
-	opts := &StartOptions{
-		imdsPort: port,
-	}
 
 	mux := NewLogMux(ctx, os.Stderr)
 
 	log.Debug("Opened mux logger")
+
+	out := mux.Stream("qemu")
+
+	opts := &StartOptions{
+		imdsPort: port,
+		output:   out,
+	}
+
+	for _, m := range c.machines {
+		m := m
+
+		err := m.Start(ctx, opts)
+
+		if err != nil {
+			return fmt.Errorf("starting machine %s: %w", m.Name, err)
+		}
+
+		eg.Go(func() error {
+			return m.cmd.Wait()
+		})
+	}
 
 	for _, m := range c.machines {
 		m := m
@@ -105,18 +110,12 @@ func (c *Cluster) Start(ctx context.Context) error {
 		log.Debug("Created stream", "name", m.Name)
 
 		eg.Go(func() error {
-			err := m.Start(ctx, opts)
-
-			if err != nil {
-				return err
-			}
-
 			c, err := m.Conn()
 
-			log.Debug("Opened connection", "name", m.Name)
+			log.Debug("Opened machine connection", "name", m.Name)
 
 			if err != nil {
-				return err
+				return fmt.Errorf("getting machine socket connection: %w", err)
 			}
 
 			io.Copy(s, c)
@@ -125,8 +124,78 @@ func (c *Cluster) Start(ctx context.Context) error {
 		})
 	}
 
-	if err := eg.Wait(); err != nil {
-		return err
+	err := c.startMdnsServers()
+
+	if err != nil {
+		return fmt.Errorf("starting Mdns server: %w", err)
+	}
+
+	log.Debug("Started MDNS server")
+
+	<-ctx.Done()
+
+	return ctx.Err()
+}
+
+func (c *Cluster) Shutdown(ctx context.Context) (err error) {
+	err = c.imdsSrv.Shutdown(ctx)
+
+	if err != nil {
+		return fmt.Errorf("shutting down IMDS server: %w", err)
+	}
+
+	for _, s := range c.mdnsSrvs {
+		// preserve the first error
+		if err == nil {
+			err = s.Shutdown()
+		} else {
+			s.Shutdown()
+		}
+	}
+
+	return err
+}
+
+func (c *Cluster) startImdsServer(portChan chan<- int) error {
+	imds := NewImdsSever(c.machines)
+
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+
+	if err != nil {
+		return fmt.Errorf("opening IMDS server TCP connection: %w", err)
+	}
+
+	port := l.Addr().(*net.TCPAddr).Port
+
+	portChan <- port
+
+	srv := &http.Server{Handler: imds}
+
+	c.imdsSrv = srv
+
+	return srv.Serve(l)
+}
+
+func (c *Cluster) startMdnsServers() error {
+	for _, m := range c.machines {
+		// TODO: loop through ports to find services and port bindings instead of hardcoding SSH
+		// The format is: [tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport
+
+		info := []string{fmt.Sprintf("Fog machine SSH for %s", m.Name)}
+
+		svc, err := mdns.NewMDNSService(m.Name, "_ssh._tcp", "", "", 2222, nil, info)
+
+		if err != nil {
+			return fmt.Errorf("creating mdns service: %w", err)
+		}
+
+		server, err := mdns.NewServer(&mdns.Config{Zone: svc})
+
+		if err != nil {
+			return fmt.Errorf("creating mdns server: %w", err)
+		}
+
+		c.mdnsSrvs = append(c.mdnsSrvs, server)
 	}
 
 	return nil

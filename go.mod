@@ -12,9 +12,12 @@ require (
 require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
+	github.com/hashicorp/mdns v1.0.5 // indirect
 	github.com/mattn/go-isatty v0.0.18 // indirect
+	github.com/miekg/dns v1.1.41 // indirect
 	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/muesli/termenv v0.15.1 // indirect
+	golang.org/x/net v0.10.0 // indirect
 )
 
 require (

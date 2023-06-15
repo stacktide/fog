@@ -43,10 +43,27 @@ func NewImdsSever(machines []*Machine) *ImdsServer {
 
 		mux.HandleFunc(fmt.Sprintf("/%s/vendor-data", m.ID), func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add("Content-Type", "text/yaml")
-			// TODO: pull out into a YAML file and embed?
-			// Should we enable multiple gettys for concurrent commands?
-			// We can enable auto login as explained here: https://wiki.archlinux.org/title/getty
+			// TODO:
+			// - inject ssh keys from agent automatically
+			// - don't create new user, use default instead
+			// - enable serial console in machine config since it can vary? Allow detaching the main console instead?
 			w.Write([]byte(`#cloud-config
+users:
+- default
+- name: fog
+  sudo: ALL=(ALL) NOPASSWD:ALL
+  lock_passwd: false
+  shell: /bin/bash
+  ssh_authorized_keys:
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPgo7auZwhc1Di7BlJA+tI2mFKe/w/mVIQlFPOKV59xV matt@destructure.co"
+
+write_files:
+- path: /etc/systemd/system/serial-getty@ttyS1.service.d/autologin.conf
+  content: |
+    [Service]
+    ExecStart=
+    ExecStart=-/sbin/agetty -o '-p -f -- \\u' --keep-baud --autologin fog 115200,57600,38400,9600 - $TERM
+
 runcmd:
   - ["sudo", "systemctl", "enable", "--now", "serial-getty@ttyS1.service"]
 `))
