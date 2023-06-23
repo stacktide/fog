@@ -181,9 +181,22 @@ func (c *Cluster) startMdnsServers() error {
 		// TODO: loop through ports to find services and port bindings instead of hardcoding SSH
 		// The format is: [tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport
 
-		info := []string{fmt.Sprintf("Fog machine SSH for %s", m.Name)}
+		username := m.Img.Username
 
-		svc, err := mdns.NewMDNSService(m.Name, "_ssh._tcp", "", "", 2222, nil, info)
+		if username == "" {
+			username = m.Img.Name
+		}
+
+		txt := []string{
+			fmt.Sprintf("fog=%s", m.Name),
+			fmt.Sprintf("u=%s", username),
+		}
+
+		if pw, ok := m.Conf.CloudConfig["password"]; ok {
+			txt = append(txt, fmt.Sprintf("p=%s", pw))
+		}
+
+		svc, err := mdns.NewMDNSService(m.Name, "_ssh._tcp", "", "", 2222, nil, txt)
 
 		if err != nil {
 			return fmt.Errorf("creating mdns service: %w", err)
